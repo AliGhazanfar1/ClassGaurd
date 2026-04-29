@@ -2,7 +2,7 @@
 
 ClassGuard is a full-stack web application for secure, real-time classroom attendance tracking. It uses dynamic QR codes that rotate every 4 seconds, hardware device fingerprinting, IP-based network locking, and live Socket.IO updates to prevent proxy attendance.
 
-Developed by **Meraj Alam**.
+Developed by **Ali Ghazanfar**.
 
 ---
 
@@ -32,7 +32,7 @@ The admin clicks **"Start Attendance Session"**. The server:
 - The admin's browser joins a **Socket.IO room** named `session_<id>`.
 
 ### 3. Dynamic QR Code Generation
-Once the admin joins the session room, `socketHandler.js` immediately generates and emits the first QR code, then sets a **7-second interval** to continuously rotate it.
+Once the admin joins the session room, `socketHandler.js` immediately generates and emits the first QR code, then sets a **4-second interval** to continuously rotate it.
 
 Each QR token is a short string in the format:
 ```
@@ -54,7 +54,7 @@ See [Security Mechanisms](#-security-mechanisms) for full details.
 On a successful mark, the server emits an `attendance-marked` Socket.IO event to the session room. The admin's dashboard adds the student's name, ID, and timestamp instantly without a page refresh.
 
 ### 7. Stopping a Session & Exporting
-The admin clicks **"Stop Session"** which sets `isActive: false` in the DB. The 7-second QR interval also polls the DB and will self-stop if it detects an inactive session. The admin can export the full attendance list as a `.xlsx` spreadsheet using the **Export Excel** button at any time (even after stopping).
+The admin clicks **"Stop Session"** which sets `isActive: false` in the DB. The 4-second QR interval also polls the DB and will self-stop if it detects an inactive session. The admin can export the full attendance list as a `.xlsx` spreadsheet using the **Export Excel** button at any time (even after stopping).
 
 ---
 
@@ -198,7 +198,7 @@ All routes are prefixed with `/api`.
 |---|---|---|
 | `join-session` | Client → Server | Admin joins a session room; triggers QR rotation |
 | `leave-session` | Client → Server | Admin leaves room; clears QR interval |
-| `new-qr` | Server → Client | Emits `{ qrDataUrl, token }` every 7 seconds |
+| `new-qr` | Server → Client | Emits `{ qrDataUrl, token }` every 4 seconds |
 | `attendance-marked` | Server → Client | Emits `{ name, studentId, email, timestamp }` on successful scan |
 | `session-ended` | Server → Client | Emitted when interval detects session is no longer active |
 
@@ -210,7 +210,7 @@ When a student submits `POST /api/attendance/mark`, six checks run in sequence:
 
 1. **QR Token Format Check** – Token must contain a `:` separator (`sessionId:hexSecret`). Malformed tokens are rejected immediately.
 
-2. **In-Memory Token Validation** – The token is checked against the `current` and `previous` tokens stored in `qrService`'s in-memory `Map`. Tokens older than one rotation cycle (~7–14 seconds) are invalid. This prevents students from photographing and sharing QR codes.
+2. **In-Memory Token Validation** – The token is checked against the `current` and `previous` tokens stored in `qrService`'s in-memory `Map`. Tokens older than one rotation cycle (~4–8 seconds) are invalid. This prevents students from photographing and sharing QR codes.
 
 3. **Session Active Check** – The session record is fetched from the DB. If `isActive` is `false`, the request is rejected.
 
