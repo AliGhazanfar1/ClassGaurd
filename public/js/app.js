@@ -332,6 +332,25 @@ const app = {
       .catch(err => this.showToast(err.message, 'error'));
   },
 
+  exportMasterAttendance() {
+    const url = `${API_URL}/admin/export-all`;
+
+    fetch(url, { headers: { 'Authorization': `Bearer ${this.token}` } })
+      .then(res => {
+        if (!res.ok) throw new Error('Export failed');
+        return res.blob();
+      })
+      .then(blob => {
+        const a = document.createElement('a');
+        a.href = window.URL.createObjectURL(blob);
+        a.download = `master_attendance_report.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      })
+      .catch(err => this.showToast(err.message, 'error'));
+  },
+
   async showAllStudents() {
     try {
       const res = await this.apiCall('/admin/students');
