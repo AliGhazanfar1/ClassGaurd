@@ -76,8 +76,10 @@ const app = {
       this.switchSection(this.user.role === 'admin' ? 'admin' : 'student');
 
       if (this.user.role === 'admin') {
+        document.getElementById('btn-all-students').style.display = 'inline-block';
         this.initAdmin();
       } else {
+        document.getElementById('btn-all-students').style.display = 'none';
         this.initStudent();
       }
     } else {
@@ -328,6 +330,32 @@ const app = {
         document.body.removeChild(a);
       })
       .catch(err => this.showToast(err.message, 'error'));
+  },
+
+  async showAllStudents() {
+    try {
+      const res = await this.apiCall('/admin/students');
+      const list = document.getElementById('all-students-list');
+      list.innerHTML = '';
+      if(res.data.students.length === 0) {
+        list.innerHTML = '<p style="color: var(--text-muted);">No students found.</p>';
+      } else {
+        res.data.students.forEach(student => {
+          list.insertAdjacentHTML('beforeend', `
+            <div style="padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <strong style="color: var(--text-main); display: block;">${student.name}</strong>
+                <span style="font-size: 0.85rem; color: var(--text-muted);">${student.email}</span>
+              </div>
+              <span style="color: var(--primary); font-weight: 600;">${student.studentId || 'No ID'}</span>
+            </div>
+          `);
+        });
+      }
+      document.getElementById('students-modal').style.display = 'flex';
+    } catch(err) {
+      this.showToast(err.message, 'error');
+    }
   },
 
   /* STUDENT METHODS */
