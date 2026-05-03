@@ -176,3 +176,78 @@ exports.getAllStudents = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+exports.exportAllSessions = async (req, res) => {
+  try {
+    const students = await User.findAll({
+      where: { role: 'student' },
+      attributes: ['id', 'name'],
+      order: [['name', 'ASC']]
+    });
+
+    const sessions = await Session.findAll({
+      order: [['sessionStartTime', 'ASC']]
+    });
+
+    const attendances = await Attendance.findAll();
+
+    const attendanceMap = {};
+    attendances.forEach(att => {
+      if (!attendanceMap[att.studentId]) {
+        attendanceMap[att.studentId] = {};
+      }
+      attendanceMap[att.studentId][att.sessionId] = true;
+    });
+
+    const workbook = new exceljs.Workbook();
+    const worksheet = workbook.addWorksheet('Master Attendance');
+
+    const columns = [
+      { header: 'Student Name', key: 'name', width: 30 }
+    ];
+
+    sessions.forEach(session => {
+      const dateStr = new Date(session.sessionStartTime).toLocaleDateString();
+      columns.push({
+        header: dateStr,
+        key: `session_${session.id}`,
+        width: 15
+      });
+    });
+
+    worksheet.columns = columns;
+
+    students.forEach(student => {
+      const rowData = { name: student.name };
+      const studentAtt = attendanceMap[student.id] || {};
+      
+      sessions.forEach(session => {
+        rowData[`session_${session.id}`] = studentAtt[session.id] ? 'Present' : 'Absent';
+      });
+
+      worksheet.addRow(rowData);
+    });
+
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber > 1) {
+        row.eachCell((cell, colNumber) => {
+          if (colNumber > 1) {
+            if (cell.value === 'Present') {
+              cell.font = { color: { argb: 'FF008000' } };
+            } else if (cell.value === 'Absent') {
+              cell.font = { color: { argb: 'FFFF0000' } };
+            }
+          }
+        });
+      }
+    });
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=master_attendance_report.xlsx`);
+
+    await workbook.xlsx.write(res);
+    res.status(200).end();
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
