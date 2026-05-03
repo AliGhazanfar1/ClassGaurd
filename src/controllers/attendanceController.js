@@ -15,7 +15,7 @@ exports.markAttendance = async (req, res) => {
     // 1. Validate the Stateful token directly from memory
     const qrService = require('../services/qrService');
     const isValid = qrService.validateToken(sessionId, qrToken);
-    
+
     if (!isValid) {
       return res.status(400).json({ error: 'QR Code is invalid or expired. Please scan the projector screen again.' });
     }
@@ -32,17 +32,8 @@ exports.markAttendance = async (req, res) => {
 
     if (studentIp === '::1' || studentIp === '::ffff:127.0.0.1') studentIp = '127.0.0.1';
 
-    // Anti-proxy logic: compare with gateway IP
-    if (session.validGatewayIp && session.validGatewayIp !== '127.0.0.1' && studentIp !== session.validGatewayIp) {
-        await Log.create({
-            action: 'PROXY_ATTEMPT_BLOCKED',
-            details: `IP Mismatch. Expected: ${session.validGatewayIp}, Got: ${studentIp}`,
-            userId: req.user.id,
-            ipAddress: studentIp
-        });
-        
-        return res.status(403).json({ error: `Proxy attendance blocked! Must connect to class WiFi.` });
-    }
+    // Anti-proxy logic: IP check removed to allow attendance from any network
+    // Relying on 4-second QR changing link instead.
 
     // 5. Ensure student hasn't already marked attendance
     const existingAttendance = await Attendance.findOne({
@@ -56,25 +47,25 @@ exports.markAttendance = async (req, res) => {
     // 5b. The Ultimate Hardware Proxy Lock! 
     // Ensure no overlapping physical devices try to scan twice.
     if (deviceTicket || (deviceFingerprint && deviceFingerprint !== 'unknown_fp')) {
-        const overlappingDevice = await Attendance.findOne({
-            where: {
-                sessionId,
-                [Op.or]: [
-                    deviceTicket ? { deviceTicket } : null,
-                    (deviceFingerprint && deviceFingerprint !== 'unknown_fp') ? { deviceFingerprint } : null
-                ].filter(Boolean) // Remove nulls from Op.or
-            }
-        });
-
-        if (overlappingDevice) {
-            await Log.create({
-                action: 'DEVICE_SHARE_BLOCKED',
-                details: `Physical Device lock hit. Someone else checked in on this phone!`,
-                userId: req.user.id,
-                ipAddress: studentIp
-            });
-            return res.status(403).json({ error: 'This physical device (phone/laptop) has already recorded an attendance today! You cannot share devices.' });
+      const overlappingDevice = await Attendance.findOne({
+        where: {
+          sessionId,
+          [Op.or]: [
+            deviceTicket ? { deviceTicket } : null,
+            (deviceFingerprint && deviceFingerprint !== 'unknown_fp') ? { deviceFingerprint } : null
+          ].filter(Boolean) // Remove nulls from Op.or
         }
+      });
+
+      if (overlappingDevice) {
+        await Log.create({
+          action: 'DEVICE_SHARE_BLOCKED',
+          details: `Physical Device lock hit. Someone else checked in on this phone!`,
+          userId: req.user.id,
+          ipAddress: studentIp
+        });
+        return res.status(403).json({ error: 'This physical device (phone/laptop) has already recorded an attendance today! You cannot share devices.' });
+      }
     }
 
     // 6. Mark Attendance
