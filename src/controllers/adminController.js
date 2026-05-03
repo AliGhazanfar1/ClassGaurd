@@ -81,13 +81,20 @@ exports.getAttendanceList = async (req, res) => {
 exports.exportToExcel = async (req, res) => {
   try {
     const { id } = req.params;
+    
+    const students = await User.findAll({
+      where: { role: 'student' },
+      attributes: ['id', 'name', 'studentId', 'email'],
+      order: [['name', 'ASC']]
+    });
+
     const attendances = await Attendance.findAll({
-      where: { sessionId: id },
-      include: [{
-        model: User,
-        as: 'student'
-      }],
-      order: [['timestamp', 'ASC']]
+      where: { sessionId: id }
+    });
+
+    const attendanceMap = {};
+    attendances.forEach(att => {
+      attendanceMap[att.studentId] = att;
     });
 
     const workbook = new exceljs.Workbook();
@@ -97,18 +104,32 @@ exports.exportToExcel = async (req, res) => {
       { header: 'Student Name', key: 'name', width: 30 },
       { header: 'Student ID', key: 'studentId', width: 20 },
       { header: 'Email', key: 'email', width: 30 },
+      { header: 'Status', key: 'status', width: 15 },
       { header: 'Time Marked', key: 'timestamp', width: 25 },
       { header: 'IP Address', key: 'ip', width: 20 },
     ];
 
-    attendances.forEach(att => {
+    students.forEach(student => {
+      const att = attendanceMap[student.id];
       worksheet.addRow({
-        name: att.student.name,
-        studentId: att.student.studentId,
-        email: att.student.email,
-        timestamp: new Date(att.timestamp).toLocaleString(),
-        ip: att.ipAddress
+        name: student.name,
+        studentId: student.studentId || 'N/A',
+        email: student.email,
+        status: att ? 'Present' : 'Absent',
+        timestamp: att ? new Date(att.timestamp).toLocaleString() : '-',
+        ip: att ? att.ipAddress : '-'
       });
+    });
+
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber > 1) {
+        const statusCell = row.getCell('status');
+        if (statusCell.value === 'Present') {
+          statusCell.font = { color: { argb: 'FF008000' } };
+        } else {
+          statusCell.font = { color: { argb: 'FFFF0000' } };
+        }
+      }
     });
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
