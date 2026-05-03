@@ -141,4 +141,17 @@ exports.getActiveSession = async (req, res) => {
     } catch(err) {
         res.status(500).json({ error: err.message });
     }
-}
+};
+
+exports.getAllStudents = async (req, res) => {
+  try {
+    const students = await User.findAll({
+      where: { role: 'student' },
+      attributes: ['id', 'name', 'studentId', 'email'],
+      order: [['name', 'ASC']]
+    });
+    res.status(200).json({ status: 'success', data: { students } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
