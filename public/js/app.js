@@ -311,33 +311,11 @@ const app = {
   },
 
   exportAttendance() {
-    const targetSession = currentSessionId || lastSessionId;
-    if (!targetSession) return this.showToast('No session selected to export', 'error');
-    const url = `${API_URL}/admin/session/${targetSession}/export`;
-
-    // Create temporary download link with Auth header info appended locally via fetch as Blob
-    fetch(url, { headers: { 'Authorization': `Bearer ${this.token}` } })
-      .then(res => {
-        if (!res.ok) throw new Error('Export failed');
-        return res.blob()
-      })
-      .then(blob => {
-        const a = document.createElement('a');
-        a.href = window.URL.createObjectURL(blob);
-        a.download = `attendance_session_${targetSession}.xlsx`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      })
-      .catch(err => this.showToast(err.message, 'error'));
-  },
-
-  exportMasterAttendance() {
     const url = `${API_URL}/admin/export-all`;
 
     fetch(url, { headers: { 'Authorization': `Bearer ${this.token}` } })
       .then(res => {
-        if (!res.ok) throw new Error('Export failed');
+        if (!res.ok) throw new Error('Export failed. Please check server logs.');
         return res.blob();
       })
       .then(blob => {
