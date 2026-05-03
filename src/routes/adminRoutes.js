@@ -12,6 +12,7 @@ router.put('/session/:id/stop', adminController.stopSession);
 router.get('/session/active', adminController.getActiveSession);
 router.get('/session/:id/attendance', adminController.getAttendanceList);
 router.get('/session/:id/export', adminController.exportToExcel);
+router.get('/students', adminController.getAllStudents);
 router.get('/logs', adminController.getLogs);
 
 module.exports = router;
